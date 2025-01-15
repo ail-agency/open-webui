@@ -123,7 +123,8 @@
 			size: file.size,
 			status: 'uploading',
 			error: '',
-			itemId: tempItemId
+			itemId: tempItemId,
+			created_at: Math.floor(Date.now() / 1000)
 		};
 
 		if (fileItem.size == 0) {
@@ -155,6 +156,8 @@
 
 			if (uploadedFile) {
 				console.log(uploadedFile);
+				addItemToKnowledegeById(uploadedFile)
+
 				knowledge.files = knowledge.files.map((item) => {
 					if (item.itemId === tempItemId) {
 						item.id = uploadedFile.id;
@@ -166,9 +169,19 @@
 				});
 				await addFileHandler(uploadedFile.id);
 			} else {
+				addItemToKnowledegeById({
+					...fileItem,
+					status: 'uploadFailed',
+					error: 'Failed to upload file',
+				}, true)
 				toast.error($i18n.t('Failed to upload file.'));
 			}
 		} catch (e) {
+			addItemToKnowledegeById({
+					...fileItem,
+					status: 'uploadFailed',
+					error: e,
+				}, true)
 			toast.error(e);
 		}
 	};
@@ -325,6 +338,56 @@
 		});
 	};
 
+	const deleteKnowledgeById = () => {
+		localStorage.removeItem(`knowledge_${id}`)
+	}
+
+	const addItemToKnowledegeById = (uploadedFile, shouldSync) => {
+		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
+		const savedItem = {
+			...uploadedFile,
+		}
+		items.push(savedItem)
+		localStorage.setItem(`knowledge_${id}`, JSON.stringify(items))
+		if(shouldSync){
+			knowledge.files = knowledge.files.concat([savedItem])
+		}
+	}
+
+	const mergeWithFailedFiles = () => {
+		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
+		const failedItems = items.filter(i => i.error)
+		knowledge.files = knowledge.files.concat(failedItems)
+	}
+
+	const updateKnowledgeFromStorage = (fileId, error)  => {
+		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
+		const index = items.findIndex(i => i.id === fileId)
+		if(index === -1){
+			return {}
+		}
+
+		items[index] = {
+			...items[index],
+			error
+		}
+		localStorage.setItem(`knowledge_${id}`, JSON.stringify(items))
+		return items[index]
+	}
+
+	const isFailedFile = (fileId) => {
+		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
+		const index = items.findIndex(i => i.id === fileId)
+
+		return index >= 0;
+	}
+
+	const deleteFileFromKnowledge = (fileId) => {
+		let items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
+		items = items.filter(item => item.id !== fileId);
+		localStorage.setItem(`knowledge_${id}`, JSON.stringify(items))
+	}
+
 	// Error handler
 	const handleUploadError = (error) => {
 		if (error.name === 'AbortError') {
@@ -341,7 +404,7 @@
 			const res = await resetKnowledgeById(localStorage.token, id).catch((e) => {
 				toast.error(e);
 			});
-
+			deleteKnowledgeById()
 			if (res) {
 				knowledge = res;
 				toast.success($i18n.t('Knowledge reset successfully.'));
@@ -355,23 +418,43 @@
 	};
 
 	const addFileHandler = async (fileId) => {
+		let error = null;
 		const updatedKnowledge = await addFileToKnowledgeById(localStorage.token, id, fileId).catch(
 			(e) => {
 				toast.error(e);
+				error = e;
 				return null;
 			}
 		);
 
 		if (updatedKnowledge) {
 			knowledge = updatedKnowledge;
+			deleteFileFromKnowledge(fileId)
+			mergeWithFailedFiles()
 			toast.success($i18n.t('File added successfully.'));
 		} else {
 			toast.error($i18n.t('Failed to add file.'));
-			knowledge.files = knowledge.files.filter((file) => file.id !== fileId);
+			const updatedItem = updateKnowledgeFromStorage(fileId, error);
+			knowledge.files = knowledge.files.map((file) => {
+				if(file.id !== fileId){
+					return file;
+				}else{
+					return {
+						...updatedItem,
+						error,
+						status: 'addFailed'
+					}
+				}
+			});
 		}
 	};
 
 	const deleteFileHandler = async (fileId) => {
+		if(isFailedFile(fileId)){
+			deleteFileFromKnowledge(fileId);
+			knowledge.files = knowledge?.files.filter(i => i.id !== fileId);
+			return;
+		}
 		const updatedKnowledge = await removeFileFromKnowledgeById(
 			localStorage.token,
 			id,
@@ -382,6 +465,7 @@
 
 		if (updatedKnowledge) {
 			knowledge = updatedKnowledge;
+			mergeWithFailedFiles()
 			toast.success($i18n.t('File removed successfully.'));
 		}
 	};
@@ -404,6 +488,7 @@
 
 		if (res && updatedKnowledge) {
 			knowledge = updatedKnowledge;
+			mergeWithFailedFiles()
 			toast.success($i18n.t('File content updated successfully.'));
 		}
 	};
@@ -524,6 +609,7 @@
 
 		if (res) {
 			knowledge = res;
+			mergeWithFailedFiles()
 		} else {
 			goto('/workspace/knowledge');
 		}
@@ -749,7 +835,7 @@
 									</button>
 								</div>
 								<div class=" flex-1 text-xl line-clamp-1">
-									{selectedFile?.meta?.name}
+									{selectedFile?.meta?.name || selectedFile?.name}
 								</div>
 
 								<div>

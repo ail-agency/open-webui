@@ -9,6 +9,7 @@
 	import { fade, slide } from 'svelte/transition';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import { userSignOut } from '$lib/apis/auths';
+	import { clearKnowledgeData } from '$lib/utils';
 
 	const i18n = getContext('i18n');
 
@@ -158,6 +159,7 @@
 				on:click={async () => {
 					await userSignOut();
 					localStorage.removeItem('token');
+					clearKnowledgeData()
 					location.href = '/auth';
 					show = false;
 				}}

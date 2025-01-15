@@ -38,7 +38,7 @@
 
 	import { WEBUI_BASE_URL, WEBUI_HOSTNAME } from '$lib/constants';
 	import i18n, { initI18n, getLanguages } from '$lib/i18n';
-	import { bestMatchingLanguage } from '$lib/utils';
+	import { bestMatchingLanguage, clearKnowledgeData } from '$lib/utils';
 	import { getAllTags, getChatList } from '$lib/apis/chats';
 	import NotificationToast from '$lib/components/NotificationToast.svelte';
 
@@ -260,6 +260,7 @@
 					} else {
 						// Redirect Invalid Session User to /auth Page
 						localStorage.removeItem('token');
+						clearKnowledgeData()
 						await goto('/auth');
 					}
 				} else {

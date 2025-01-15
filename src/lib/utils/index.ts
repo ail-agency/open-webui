@@ -1015,3 +1015,11 @@ export const getLineCount = (text) => {
 	console.log(typeof text);
 	return text ? text.split('\n').length : 0;
 };
+
+export const clearKnowledgeData = () => {
+	Object.keys(localStorage).forEach(key => {
+		if (key.startsWith("knowledge")) {
+		  localStorage.removeItem(key);
+		}
+	  });
+}

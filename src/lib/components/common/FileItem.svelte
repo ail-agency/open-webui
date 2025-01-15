@@ -25,6 +25,9 @@
 	export let type: string;
 	export let size: number;
 
+	export let status: string;
+	export let error: any;
+
 	let showModal = false;
 </script>
 
@@ -82,7 +85,13 @@
 			<div class=" dark:text-gray-100 text-sm font-medium line-clamp-1 mb-1">
 				{name}
 			</div>
-
+			{#if error}
+		<div class=" dark:text-red-500 text-sm font-medium line-clamp-1 mb-1">
+			<span class="capitalize">
+				{status === 'uploadFailed' ? 'Upload failed': 'Add failed'}
+			</span>
+		</div>
+		{/if}
 			<div class=" flex justify-between text-gray-500 text-xs line-clamp-1">
 				{#if type === 'file'}
 					{$i18n.t('File')}
@@ -99,7 +108,7 @@
 			</div>
 		</div>
 	{:else}
-		<Tooltip content={name} className="flex flex-col w-full" placement="top-start">
+		<Tooltip content={error ? `${name}: ${error}` : `${name}`} className="flex flex-col w-full" placement="top-start">
 			<div class="flex flex-col justify-center -space-y-0.5 px-2.5 w-full">
 				<div class=" dark:text-gray-100 text-sm flex justify-between items-center">
 					{#if loading}
@@ -107,7 +116,13 @@
 							<Spinner className="size-4" />
 						</div>
 					{/if}
-					<div class="font-medium line-clamp-1 flex-1">{name}</div>
+					<div class="font-medium line-clamp-1 flex-1 min-w-[50%]">{name}</div>
+					{#if error}
+					<div class="font-medium line-clamp-1 flex-1 text-red-500">
+						{status === 'uploadFailed' ? 'Upload failed': 'Add failed'}
+					</div>
+					{/if}
+					
 					<div class="text-gray-500 text-xs capitalize shrink-0">{formatFileSize(size)}</div>
 				</div>
 			</div>

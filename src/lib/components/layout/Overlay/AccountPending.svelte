@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getAdminDetails } from '$lib/apis/auths';
+	import { clearKnowledgeData } from '$lib/utils';
 	import { onMount, tick, getContext } from 'svelte';
 
 	const i18n = getContext('i18n');
@@ -52,6 +53,7 @@
 						class="text-xs text-center w-full mt-2 text-gray-400 underline"
 						on:click={async () => {
 							localStorage.removeItem('token');
+							clearKnowledgeData()
 							location.href = '/auth';
 						}}>{$i18n.t('Sign Out')}</button
 					>

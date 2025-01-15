@@ -57,6 +57,8 @@
 			toast.error(e);
 		});
 
+		localStorage.removeItem(`knowledge_${item.id}`)
+
 		if (res) {
 			knowledgeBases = await getKnowledgeBaseList(localStorage.token);
 			knowledge.set(await getKnowledgeBases(localStorage.token));
