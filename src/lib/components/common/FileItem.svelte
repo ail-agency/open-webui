@@ -87,7 +87,7 @@
 			</div>
 			{#if error}
 		<div class=" dark:text-red-500 text-sm font-medium line-clamp-1 mb-1">
-			<span class="capitalize">
+			<span>
 				{status === 'uploadFailed' ? 'Upload failed': 'Add failed'}
 			</span>
 		</div>
@@ -116,10 +116,18 @@
 							<Spinner className="size-4" />
 						</div>
 					{/if}
-					<div class="font-medium line-clamp-1 flex-1 min-w-[50%]">{name}</div>
+					<div class="font-medium line-clamp-1 flex-1 min-w-[35%]">{name}</div>
 					{#if error}
 					<div class="font-medium line-clamp-1 flex-1 text-red-500">
 						{status === 'uploadFailed' ? 'Upload failed': 'Add failed'}
+					</div>
+					<div class='w-[20%] flex justify-center'>
+						<button class="font-medium line-clamp-1 text-red-500" type="button" on:click={(e) => {
+							e.stopPropagation()
+							dispatch('retry')
+						}}>
+							Retry
+						</button>
 					</div>
 					{/if}
 					

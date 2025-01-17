@@ -28,7 +28,7 @@
 				error={file.error}
 				dismissible
 				on:click={() => {
-					if (file.status === 'uploading') {
+					if (file.status === 'uploading' || file.status === 'uploadFailed') {
 						return;
 					}
 
@@ -38,8 +38,13 @@
 					if (file.status === 'uploading') {
 						return;
 					}
-
-					dispatch('delete', file.id);
+					dispatch('delete', file.id || file.itemId);
+				}}
+				on:retry={() => {
+					dispatch('retry', {
+						id: file.id || file.itemId,
+						status: file.status,
+					});
 				}}
 			/>
 		</div>

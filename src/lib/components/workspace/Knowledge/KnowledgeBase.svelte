@@ -110,10 +110,10 @@
 		return file;
 	};
 
-	const uploadFileHandler = async (file) => {
+	const uploadFileHandler = async (file, isRetry = false) => {
 		console.log(file);
 
-		const tempItemId = uuidv4();
+		const tempItemId = isRetry ? file.id : uuidv4();
 		const fileItem = {
 			type: 'file',
 			file: '',
@@ -131,8 +131,14 @@
 			toast.error($i18n.t('You cannot upload an empty file.'));
 			return null;
 		}
-
-		knowledge.files = [...(knowledge.files ?? []), fileItem];
+		if(!isRetry){
+			knowledge.files = [...(knowledge.files ?? []), fileItem];
+		}else{
+			updateKnowLedgeData(tempItemId, {
+				status: 'uploading',
+				error: null
+			})
+		}
 
 		// Check if the file is an audio file and transcribe/convert it to text file
 		if (['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/x-m4a'].includes(file['type'])) {
@@ -156,8 +162,13 @@
 
 			if (uploadedFile) {
 				console.log(uploadedFile);
-				addItemToKnowledegeById(uploadedFile)
-
+				if(!isRetry){
+					addItemToKnowledegeById(uploadedFile)
+				}else{
+					updateKnowledgeFromStorage(tempItemId, {
+						id: uploadedFile.id
+					})
+				}
 				knowledge.files = knowledge.files.map((item) => {
 					if (item.itemId === tempItemId) {
 						item.id = uploadedFile.id;
@@ -169,19 +180,37 @@
 				});
 				await addFileHandler(uploadedFile.id);
 			} else {
-				addItemToKnowledegeById({
+				if(!isRetry){
+					addItemToKnowledegeById({
 					...fileItem,
 					status: 'uploadFailed',
 					error: 'Failed to upload file',
+					id: tempItemId,
+					source: URL.createObjectURL(file as Blob)
 				}, true)
+				}else{
+					updateKnowLedgeData(tempItemId, {
+						status: 'uploadFailed',
+						error: 'Failed to upload file',
+					})
+				}
 				toast.error($i18n.t('Failed to upload file.'));
 			}
 		} catch (e) {
+			if(!isRetry){
 			addItemToKnowledegeById({
 					...fileItem,
 					status: 'uploadFailed',
 					error: e,
+					id: tempItemId,
+					source: URL.createObjectURL(file as Blob)
 				}, true)
+			}else{
+				updateKnowLedgeData(tempItemId, {
+						status: 'uploadFailed',
+						error: 'Failed to upload file',
+					})
+			}
 			toast.error(e);
 		}
 	};
@@ -342,16 +371,24 @@
 		localStorage.removeItem(`knowledge_${id}`)
 	}
 
-	const addItemToKnowledegeById = (uploadedFile, shouldSync) => {
+	const addItemToKnowledegeById = (uploadedFile, shouldSync = false) => {
 		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
 		const savedItem = {
 			...uploadedFile,
 		}
+		if(shouldSync){
+			knowledge.files = knowledge.files.map(f => {
+				if(f.id !== uploadedFile.id && f.itemId !== uploadedFile.itemId){
+					return f;
+				}
+				return {
+					...uploadedFile
+				}
+			})
+		}
 		items.push(savedItem)
 		localStorage.setItem(`knowledge_${id}`, JSON.stringify(items))
-		if(shouldSync){
-			knowledge.files = knowledge.files.concat([savedItem])
-		}
+		
 	}
 
 	const mergeWithFailedFiles = () => {
@@ -360,21 +397,34 @@
 		knowledge.files = knowledge.files.concat(failedItems)
 	}
 
-	const updateKnowledgeFromStorage = (fileId, error)  => {
+	const updateKnowledgeFromStorage = (fileId, data)  => {
 		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
-		const index = items.findIndex(i => i.id === fileId)
+		const index = items.findIndex(i => i.id === fileId || i.itemId === fileId)
 		if(index === -1){
 			return {}
 		}
 
 		items[index] = {
 			...items[index],
-			error
+			...data,
 		}
 		localStorage.setItem(`knowledge_${id}`, JSON.stringify(items))
 		return items[index]
 	}
 
+	const updateKnowLedgeData = (fileId, data) => {
+		updateKnowledgeFromStorage(fileId, data)
+		knowledge.files = knowledge.files.map((file) => {
+				if(file.id !== fileId){
+					return file;
+				}else{
+					return {
+						...file,
+						...data
+					}
+				}
+			});
+	}
 	const isFailedFile = (fileId) => {
 		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
 		const index = items.findIndex(i => i.id === fileId)
@@ -386,6 +436,11 @@
 		let items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
 		items = items.filter(item => item.id !== fileId);
 		localStorage.setItem(`knowledge_${id}`, JSON.stringify(items))
+	}
+
+	const getItemFromLocalStorage = (fileId) => {
+		let items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
+		return items.find(item => item.id === fileId);
 	}
 
 	// Error handler
@@ -417,8 +472,14 @@
 		}
 	};
 
-	const addFileHandler = async (fileId) => {
+	const addFileHandler = async (fileId, isRetry = false) => {
 		let error = null;
+		if(isRetry){
+			updateKnowLedgeData(fileId, {
+				error: null,
+				status: 'uploading'
+			})
+		}
 		const updatedKnowledge = await addFileToKnowledgeById(localStorage.token, id, fileId).catch(
 			(e) => {
 				toast.error(e);
@@ -434,17 +495,9 @@
 			toast.success($i18n.t('File added successfully.'));
 		} else {
 			toast.error($i18n.t('Failed to add file.'));
-			const updatedItem = updateKnowledgeFromStorage(fileId, error);
-			knowledge.files = knowledge.files.map((file) => {
-				if(file.id !== fileId){
-					return file;
-				}else{
-					return {
-						...updatedItem,
-						error,
-						status: 'addFailed'
-					}
-				}
+			updateKnowLedgeData(fileId, {
+				error,
+				status: 'addFailed'
 			});
 		}
 	};
@@ -562,6 +615,27 @@
 			}
 		}
 	};
+
+	const retryUpload = (detail) => {
+		const failedItem = getItemFromLocalStorage(detail.id)
+		if(!failedItem.source){
+			toast.error($i18n.t(`File not found.`));
+			return;
+		}
+		fetch(failedItem.source)
+        .then((res) => res.blob())
+        .then((blob) => {
+            const reconstructedFile = new File([blob], failedItem.name);
+			reconstructedFile.id = failedItem.id
+            uploadFileHandler(reconstructedFile, true)
+        }).catch(() => {
+			toast.error($i18n.t(`File not found.`));
+		})
+	}
+
+	const retryAdd = (detail) => {
+		addFileHandler(detail.id, true);
+	}
 
 	onMount(async () => {
 		// listen to resize 1024px
@@ -933,10 +1007,18 @@
 										selectedFileId = selectedFileId === e.detail ? null : e.detail;
 									}}
 									on:delete={(e) => {
-										console.log(e.detail);
+										console.log('22222', e.detail);
 
 										selectedFileId = null;
 										deleteFileHandler(e.detail);
+									}}
+									on:retry={(e) => {
+										console.log('eeeeee', e)
+										if(e.detail.status === 'uploadFailed'){
+											retryUpload(e.detail)
+										}else if(e.detail.status === 'addFailed'){
+											retryAdd(e.detail)
+										}
 									}}
 								/>
 							</div>
