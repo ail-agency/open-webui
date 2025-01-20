@@ -375,6 +375,7 @@
 		const items = JSON.parse(localStorage.getItem(`knowledge_${id}`) || '[]');
 		const savedItem = {
 			...uploadedFile,
+			data: null
 		}
 		if(shouldSync){
 			knowledge.files = knowledge.files.map(f => {
@@ -638,6 +639,7 @@
 	}
 
 	onMount(async () => {
+
 		// listen to resize 1024px
 		mediaQuery = window.matchMedia('(min-width: 1024px)');
 
