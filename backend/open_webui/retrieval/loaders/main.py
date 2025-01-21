@@ -17,6 +17,7 @@ from langchain_community.document_loaders import (
     UnstructuredRSTLoader,
     UnstructuredXMLLoader,
     YoutubeLoader,
+    UnstructuredWordDocumentLoader
 )
 from langchain_core.documents import Document
 from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL
@@ -170,6 +171,8 @@ class Loader:
                 or file_ext == "docx"
             ):
                 loader = Docx2txtLoader(file_path)
+            elif file_ext == "doc":
+                return UnstructuredWordDocumentLoader(file_path)
             elif file_content_type in [
                 "application/vnd.ms-excel",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
