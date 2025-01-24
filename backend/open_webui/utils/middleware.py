@@ -72,6 +72,8 @@ from open_webui.env import (
     ENABLE_REALTIME_CHAT_SAVE,
 )
 from open_webui.constants import TASKS
+from open_webui.utils.token_limit import calculate_messages_token_usage, calculate_content_token_usage
+from open_webui.internal.redis import inc_rate_usage
 
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
@@ -1219,6 +1221,15 @@ async def process_chat_response(
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
                 data = {"done": True, "content": content, "title": title}
 
+                body = await request.json()
+    
+                # Access the 'messages' key
+                messages = body.get("messages", [])
+    
+                total_token_usage = calculate_content_token_usage(content) + calculate_messages_token_usage(messages)
+
+                await inc_rate_usage(user, 'token', total_token_usage)
+                                
                 if not ENABLE_REALTIME_CHAT_SAVE:
                     # Save message in the database
                     Chats.upsert_message_to_chat_by_id_and_message_id(
