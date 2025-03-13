@@ -91,9 +91,13 @@
 	let chatInputElement;
 
 	let filesInputElement;
+	let emailFileInputElement;
+
 	let commandsElement;
 
 	let inputFiles;
+	let emailFile;
+
 	let dragged = false;
 
 	let user = null;
@@ -270,6 +274,35 @@
 			}
 		});
 	};
+
+	const emailFileHandler = async (file) =>{
+		try {
+    		const token = localStorage.getItem('n8n-token')
+			if(!token){
+				toast.error(`Do not have the access to server`)
+				return;
+			}
+    		const formData = new FormData();
+    		formData.append('data', file);
+
+    		const response = await fetch(
+      		`http://n8n.ailaunch.asia:5678/webhook/be71825b-ce42-4065-a7bc-c8349525f0fa`,
+      		{
+        		method: 'POST',
+        		headers: {
+          			'Authorization': `Bearer ${token}`
+        		},
+        		body: formData
+      		}
+    		);
+    		if (response.status !== 200) {
+      			throw new Error(`Upload failed with status: ${response.status}`);
+    		}
+			toast.success("Upload file successfully")
+  		} catch (error) {
+    		toast.error(`Error: ${error}`)
+  		}
+	}
 
 	const handleKeyDown = (event: KeyboardEvent) => {
 		if (event.key === 'Escape') {
@@ -541,6 +574,23 @@
 							}
 
 							filesInputElement.value = '';
+						}}
+					/>
+
+					<input
+						bind:this={emailFileInputElement}
+						bind:files={emailFile}
+						type="file"
+						accept=".csv"
+						hidden
+						on:change={async () => {
+							if (emailFile && emailFile.length > 0) {
+								emailFileHandler(emailFile[0]);
+							} else {
+								toast.error($i18n.t(`File not found.`));
+							}
+
+							emailFileInputElement.value = '';
 						}}
 					/>
 
@@ -1107,6 +1157,9 @@
 											{inputFilesHandler}
 											uploadFilesHandler={() => {
 												filesInputElement.click();
+											}}
+											uploadEmailFileHandler={() => {
+												emailFileInputElement.click();
 											}}
 											uploadGoogleDriveHandler={async () => {
 												try {
