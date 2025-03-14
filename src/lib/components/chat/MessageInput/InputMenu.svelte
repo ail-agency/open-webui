@@ -173,7 +173,7 @@
 				</DropdownMenu.Item>
 			</Tooltip>
 
-			<Tooltip
+			<!-- <Tooltip
 				content={!fileUploadEnabled ? $i18n.t('You do not have permission to upload files') : ''}
 				className="w-full"
 			>
@@ -190,7 +190,7 @@
 					<DocumentArrowUpSolid />
 					<div class="line-clamp-1">{$i18n.t('Upload Files')}</div>
 				</DropdownMenu.Item>
-			</Tooltip>
+			</Tooltip> -->
 
 			<Tooltip
 				content={!fileUploadEnabled ? $i18n.t('You do not have permission to upload files') : ''}
