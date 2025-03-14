@@ -205,7 +205,7 @@
 					}}
 				>
 					<DocumentArrowUpSolid />
-					<div class="line-clamp-1">{$i18n.t('Upload Email File')}</div>
+					<div class="line-clamp-1">{$i18n.t('Upload File')}</div>
 				</DropdownMenu.Item>
 			</Tooltip>
 
