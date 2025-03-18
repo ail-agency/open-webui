@@ -3,6 +3,7 @@
 	import { v4 as uuidv4 } from 'uuid';
 	import { createPicker, getAuthToken } from '$lib/utils/google-drive-picker';
 	import { pickAndDownloadFile } from '$lib/utils/onedrive-file-picker';
+	import { uploadFileToN8n } from '$lib/apis/files';
 
 	import { onMount, tick, getContext, createEventDispatcher, onDestroy } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -275,33 +276,13 @@
 		});
 	};
 
-	const emailFileHandler = async (file) =>{
+	const emailFileHandler = async (file) => {
 		try {
-    		const token = localStorage.getItem('n8n-token')
-			if(!token){
-				toast.error(`Do not have the access to server`)
-				return;
-			}
-    		const formData = new FormData();
-    		formData.append('data', file);
-
-    		const response = await fetch(
-      		`http://n8n.ailaunch.asia:5678/webhook/be71825b-ce42-4065-a7bc-c8349525f0fa`,
-      		{
-        		method: 'POST',
-        		headers: {
-          			'Authorization': `Bearer ${token}`
-        		},
-        		body: formData
-      		}
-    		);
-    		if (response.status !== 200) {
-      			throw new Error(`Upload failed with status: ${response.status}`);
-    		}
-			toast.success("Upload file successfully")
-  		} catch (error) {
-    		toast.error(`Error: ${error}`)
-  		}
+			await uploadFileToN8n(localStorage.token, file);
+			toast.success("Upload file successfully");
+		} catch (error) {
+			toast.error(`Error: ${error}`);
+		}
 	}
 
 	const handleKeyDown = (event: KeyboardEvent) => {
@@ -1047,56 +1028,56 @@
 															return;
 														}
 
-														console.log('keypress', e);
-														// Prevent Enter key from creating a new line
-														const isCtrlPressed = e.ctrlKey || e.metaKey;
-														const enterPressed =
-															($settings?.ctrlEnterToSend ?? false)
-																? (e.key === 'Enter' || e.keyCode === 13) && isCtrlPressed
-																: (e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey;
+															console.log('keypress', e);
+															// Prevent Enter key from creating a new line
+															const isCtrlPressed = e.ctrlKey || e.metaKey;
+															const enterPressed =
+																($settings?.ctrlEnterToSend ?? false)
+																	? (e.key === 'Enter' || e.keyCode === 13) && isCtrlPressed
+																	: (e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey;
 
-														console.log('Enter pressed:', enterPressed);
+															console.log('Enter pressed:', enterPressed);
 
-														if (enterPressed) {
+															if (enterPressed) {
+																e.preventDefault();
+															}
+
+															// Submit the prompt when Enter key is pressed
+															if ((prompt !== '' || files.length > 0) && enterPressed) {
+																dispatch('submit', prompt);
+															}
+														}
+													}
+
+													if (e.key === 'Tab') {
+														const words = findWordIndices(prompt);
+
+														if (words.length > 0) {
+															const word = words.at(0);
+															const fullPrompt = prompt;
+
+															prompt = prompt.substring(0, word?.endIndex + 1);
+															await tick();
+
+															e.target.scrollTop = e.target.scrollHeight;
+															prompt = fullPrompt;
+															await tick();
+
 															e.preventDefault();
+															e.target.setSelectionRange(word?.startIndex, word.endIndex + 1);
 														}
 
-														// Submit the prompt when Enter key is pressed
-														if ((prompt !== '' || files.length > 0) && enterPressed) {
-															dispatch('submit', prompt);
-														}
-													}
-												}
-
-												if (e.key === 'Tab') {
-													const words = findWordIndices(prompt);
-
-													if (words.length > 0) {
-														const word = words.at(0);
-														const fullPrompt = prompt;
-
-														prompt = prompt.substring(0, word?.endIndex + 1);
-														await tick();
-
-														e.target.scrollTop = e.target.scrollHeight;
-														prompt = fullPrompt;
-														await tick();
-
-														e.preventDefault();
-														e.target.setSelectionRange(word?.startIndex, word.endIndex + 1);
+														e.target.style.height = '';
+														e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
 													}
 
-													e.target.style.height = '';
-													e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
-												}
-
-												if (e.key === 'Escape') {
-													console.log('Escape');
-													atSelectedModel = undefined;
-													selectedToolIds = [];
-													webSearchEnabled = false;
-													imageGenerationEnabled = false;
-												}
+													if (e.key === 'Escape') {
+														console.log('Escape');
+														atSelectedModel = undefined;
+														selectedToolIds = [];
+														webSearchEnabled = false;
+														imageGenerationEnabled = false;
+													}
 											}}
 											rows="1"
 											on:input={async (e) => {

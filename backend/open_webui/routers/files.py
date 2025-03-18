@@ -1,6 +1,7 @@
 import logging
 import os
 import uuid
+import aiohttp
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
@@ -8,7 +9,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
 from open_webui.constants import ERROR_MESSAGES
-from open_webui.env import SRC_LOG_LEVELS
+from open_webui.env import SRC_LOG_LEVELS, N8N_TOKEN, N8N_WEBHOOK_URL
 from open_webui.models.files import (
     FileForm,
     FileModel,
@@ -337,7 +338,7 @@ async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
                     detail=ERROR_MESSAGES.NOT_FOUND,
                 )
         else:
-            # File path doesn’t exist, return the content as .txt if possible
+            # File path doesn't exist, return the content as .txt if possible
             file_content = file.content.get("content", "")
             file_name = file.filename
 
@@ -390,3 +391,47 @@ async def delete_file_by_id(id: str, user=Depends(get_verified_user)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
+
+
+############################
+# Upload File to N8N
+############################
+
+@router.post("/n8n/upload")
+async def upload_file_to_n8n(
+    request: Request,
+    file: UploadFile = File(...),
+    user=Depends(get_verified_user),
+):
+    try:
+        if not N8N_TOKEN:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="N8N token not configured",
+            )
+
+        form_data = aiohttp.FormData(quote_fields=False)
+        form_data.add_field('data', file.file, filename=file.filename)
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{N8N_WEBHOOK_URL}/webhook/be71825b-ce42-4065-a7bc-c8349525f0fa",
+                headers={'Authorization': f'Bearer {N8N_TOKEN}'},
+                data=form_data
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise HTTPException(
+                        status_code=response.status,
+                        detail=f"Upload failed: {error_text}"
+                    )
+                result = await response.json()
+                return result
+
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT(e),
+        )
+

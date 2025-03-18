@@ -442,3 +442,7 @@ AUDIT_EXCLUDED_PATHS = os.getenv("AUDIT_EXCLUDED_PATHS", "/chats,/chat,/folders"
 )
 AUDIT_EXCLUDED_PATHS = [path.strip() for path in AUDIT_EXCLUDED_PATHS]
 AUDIT_EXCLUDED_PATHS = [path.lstrip("/") for path in AUDIT_EXCLUDED_PATHS]
+
+# N8N Configuration
+N8N_TOKEN = os.getenv("N8N_TOKEN", "")
+N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "")

@@ -79,30 +79,6 @@
 		await setSessionUser(sessionUser);
 	};
 
-	const loginToN8N = async () => {
-		try {
-    		const response = await fetch(
-      		`http://n8n.ailaunch.asia:5678/webhook/0924a8b0-c2fe-47bf-946c-0c4c927299e6`,
-      		{
-        		method: 'POST',
-        		headers: {
-          		'Content-Type': 'application/json'
-        	},
-        	body: JSON.stringify({
-          		username: email,
-          		password
-        	})
-      		});
-    		if(!response.ok){
-     			throw new Error(`HTTP error! Status: ${response.status}`);
-    		}
-    		const data = await response.json();
-    		localStorage.setItem('n8n-token', data.token);
-  		} catch (error) {
-    		console.error("Error logging in:", error);
-  		}
-	}
-
 	const submitHandler = async () => {
 		if (mode === 'ldap') {
 			await ldapSignInHandler();
@@ -111,8 +87,6 @@
 		} else {
 			await signUpHandler();
 		}
-
-		await loginToN8N()
 	};
 
 	const checkOauthCallback = async () => {
